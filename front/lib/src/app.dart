@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:routiner/src/repo/task_repo.dart';
 
 import 'feature/home_page.dart';
 import 'feature/edit_page.dart';
 import 'feature/setting_page.dart';
 
-import 'package:routiner/src/repo/block_repo.dart';
+import 'package:routiner/src/repo/routine_repo.dart';
 import 'package:provider/provider.dart';
 
-final pages = [[HomePage(), Icons.home, "home"], [const EditPage(), Icons.edit, "edit"], [const SettingPage(), Icons.settings, "settings"]];
+final pages = [
+  [HomePage(), Icons.home, "home"], 
+  [const EditPage(), Icons.edit, "edit"], 
+  [const SettingPage(), Icons.settings, "settings"]
+];
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -15,15 +20,18 @@ class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.lightGreen),
-        useMaterial3: true,
-      ),
-      home: ChangeNotifierProvider(
-        create: (context) => BlockProvider(),
-        child: const DesktopPage(title: 'Routiner')
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (context) => RoutineProvider()),
+        ChangeNotifierProvider(create: (context) => TaskProvider()), 
+      ],
+      child: MaterialApp(
+        title: 'Flutter Demo',
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.lightGreen),
+          useMaterial3: true,
+        ),
+        home: const DesktopPage(title: 'Routiner'),
       ),
     );
   }

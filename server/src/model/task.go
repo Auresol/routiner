@@ -7,40 +7,17 @@ import (
 )
 
 type Task struct {
-	ID            uint   `json:"id" gorm:"primaryKey;autoIncrement;->"`
-	Title         string `json:"title" gorm:"unique"`
-	Explain       string `json:"explain"`
-	IconCodePoint int    `json:"icon_code_point"`
+	ID        uint      `json:"id" gorm:"primaryKey;autoIncrement;->"`
+	RoutineID uint      `json:"routine_id"`
+	Begin     time.Time `json:"begin"`
+	Due       time.Time `json:"due"`
+	Detail    string    `json:"detail"`
+	Status    bool      `json:"status"`
 
-	RoutineMode  RoutineMode `json:"routine_mode"`
-	DayInWeekly  int8        `json:"day_in_weeky"`
-	Frequency    int         `json:"frequency" gorm:"default:1"`
-	ResetOnMonth bool        `json:"reset_on_month"`
+	// Embedded struct to store routine data (preload)
+	Routine *Routine `json:"routine" gorm:"foreignKey:RoutineID;preload:false"`
 
-	Log []Log `gorm:"foreignKey:TaskID"`
-
-	CreatedAt time.Time      `json:"create_at"`
+	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `json:"deleted_at" gorm:"index"`
-}
-
-type RoutineMode int
-
-const (
-	WEEKLY RoutineMode = iota + 1
-	PERIOD
-)
-
-/* check if target is decoding in the bitmask */
-func BitmaskDecoding(bit int8, target *int) bool {
-	i := 0
-	for bit > 0 {
-		if (bit&1 == 1) && (*target == i) {
-			return true
-		}
-		i++
-		bit = bit >> 1
-	}
-
-	return false
+	DeletedAt gorm.DeletedAt `gorm:"index"`
 }

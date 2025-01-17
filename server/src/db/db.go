@@ -7,7 +7,7 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
-	//"gorm.io/gorm/logger"
+	//"gorm.io/gorm/taskger"
 
 	"github.com/joho/godotenv"
 )
@@ -22,7 +22,7 @@ func NewDBConnection(env string) *gorm.DB {
 	dbName := os.Getenv("DB_NAME")
 
 	db, err := gorm.Open(sqlite.Open(dbName), &gorm.Config{
-		//Logger: logger.Default.LogMode(logger.Info),
+		//Taskger: taskger.Default.TaskMode(taskger.Info),
 	})
 	if err != nil {
 		panic("failed to connect database")

@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:routiner/src/component/detail_block_panel.dart';
-import 'package:routiner/src/component/new_block_panel.dart';
-import 'package:routiner/src/model/block.dart';
+import 'package:routiner/src/component/edit_routine_panel.dart';
+import 'package:routiner/src/model/routine.dart';
 
-import 'package:routiner/src/repo/block_repo.dart';
+import 'package:routiner/src/repo/routine_repo.dart';
 import 'package:provider/provider.dart';
 
 class EditPage extends StatefulWidget {
@@ -15,31 +14,40 @@ class EditPage extends StatefulWidget {
 
 class _EditPage extends State<EditPage> {
 
-  var _selectedIndex = 0;
-  List<Block> _filteredItems = [];
-  Widget _detailPanel = const NewBlockPanel();
+  var _selectedIndex = -1;
+  late Future<void> _fetch;
+
+  List<Routine> _filteredItems = [];
+  List<Routine> _routines = []; 
+  Widget? _detailPanel;
 
   @override
   void initState() {
     super.initState();
+    _fetchData();
   }
 
-  void _filterItems(List<Block> allBlock, String query) {
+  Future<void> _fetchDataFuture() async {
+    final routineProvider = Provider.of<RoutineProvider>(context, listen: false);
+    await routineProvider.fetchData();
+    _routines = routineProvider.data;
+    _filteredItems = _routines;
+  }
+
+  void _fetchData() {
+    _fetch = _fetchDataFuture();
+  }
+
+  void _filterItems(String query) {
     setState(() {
-      _filteredItems = allBlock.where((item) => item.title.toLowerCase().contains(query.toLowerCase())).toList();
+      _filteredItems = _routines.where((item) => item.title.toLowerCase().contains(query.toLowerCase())).toList();
     });
   }
 
   @override
   Widget build(BuildContext context) {
 
-    final theme = Theme.of(context);  
-
-    final blockProvider = Provider.of<BlockProvider>(context); // Access Provider
-
-    // Get blocks from provider on build (assuming one time fetch)
-    final List<Block> _blocks = blockProvider.data ?? [];
-    _filteredItems = _blocks;
+    final theme = Theme.of(context);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -60,7 +68,7 @@ class _EditPage extends State<EditPage> {
                           leading: Icon(Icons.search),
                           title: TextField(
                             onChanged: (query) {
-                              _filterItems(_blocks, query);
+                              _filterItems(query);
                             },
                             decoration: InputDecoration(
                               hintText: 'Search',
@@ -71,24 +79,7 @@ class _EditPage extends State<EditPage> {
                     ),
                   
                     Expanded(
-                      child: ListView.builder(
-                          itemCount: _filteredItems.length,
-                          itemBuilder: (context, index) {
-                            return ListTile(
-                              leading: Icon(IconData(_filteredItems[index].icon, fontFamily: 'MaterialIcons')),
-                              title: Text(_filteredItems[index].title),
-                              onTap: () {
-                                setState(() {
-                                  _selectedIndex = index;
-                                  _detailPanel = DetailBlockPanel(block: _filteredItems[_selectedIndex]);
-                                });
-                              },
-                              selected: index == _selectedIndex,
-                              selectedTileColor: theme.primaryColor,
-                              selectedColor: theme.cardColor,
-                            );
-                          },
-                        ),
+                      child: _routinesListPanel(context)
                     ),
                     Align(
                       child: ListTile(
@@ -97,8 +88,10 @@ class _EditPage extends State<EditPage> {
                         title: Text("Add"),
                         onTap: (() {
                           setState(() {
-                            _detailPanel = const NewBlockPanel();
+                            _selectedIndex = -1;
+                            _detailPanel = NewRoutinePanel(fetchDataTrigger: _fetchData);
                           });
+                          _fetchData();
                         }),
                       ),   
                     ),
@@ -116,5 +109,48 @@ class _EditPage extends State<EditPage> {
         );
       }
     );
+  }
+
+
+  Widget _routinesListPanel(context) {
+    
+    final theme = Theme.of(context);  
+    // final routineProvider = Provider.of<RoutineProvider>(context, listen: false);
+    // final routines = routineProvider.data;
+
+    return FutureBuilder<void>(
+      future: _fetch,
+      builder: (context, snapshot) {
+        // if (snapshot.connectionState == ConnectionState.waiting) {
+          
+        // } else 
+        if (snapshot.hasError) {
+          return Text('Error: ${snapshot.error}'); 
+        } else if (snapshot.connectionState == ConnectionState.done) { 
+          // Future completed successfully
+          return ListView.builder(
+            itemCount: _filteredItems.length,
+            itemBuilder: (context, index) {
+              return ListTile(
+                leading: Icon(IconData(_filteredItems[index].icon, fontFamily: 'MaterialIcons')),
+                title: Text(_filteredItems[index].title),
+                onTap: () {
+                  setState(() {
+                    _selectedIndex = index;
+                    _detailPanel = NewRoutinePanel(routine: _filteredItems[_selectedIndex], fetchDataTrigger: _fetchData,);
+                  });
+                },
+                selected: index == _selectedIndex,
+                selectedTileColor: theme.primaryColor,
+                selectedColor: theme.cardColor,
+              );
+            },
+          );
+        } else {
+          return Text('Unexpected state'); 
+        }
+      },
+    );
+
   }
 }

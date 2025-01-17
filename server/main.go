@@ -17,7 +17,7 @@ func main() {
 		env = "dev"
 	}
 
-	fmt.Print("Currently on " + env + " enviroment")
+	fmt.Println("Currently on " + env + " enviroment")
 
 	router := setup(env)
 	router.InitRouter()
@@ -28,18 +28,18 @@ func setup(env string) *api.ApiRouter {
 
 	db := db.NewDBConnection(env)
 
+	db.AutoMigrate(model.Routine{})
 	db.AutoMigrate(model.Task{})
-	db.AutoMigrate(model.Log{})
 	db.AutoMigrate(model.Calender{})
 
-	taskRouter := router.NewTaskRouter(db)
-	logRouter := router.NewLogRouter(db)
 	calenderRouter := router.NewCalenderRouter(db)
+	routineRouter := router.NewRoutineRouter(db)
+	taskRouter := router.NewTaskRouter(db)
 	mockRouter := router.NewMockRouter(db)
 
 	router := api.NewApiRouter(
+		routineRouter,
 		taskRouter,
-		logRouter,
 		calenderRouter,
 		mockRouter,
 	)

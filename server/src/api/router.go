@@ -7,23 +7,23 @@ import (
 )
 
 type ApiRouter struct {
+	routineRouter  *router.RoutineRouter
 	taskRouter     *router.TaskRouter
-	logRouter      *router.LogRouter
 	calenderRouter *router.CalenderRouter
 	mockRouter     *router.MockRouter
 	router         *gin.Engine
 }
 
 func NewApiRouter(
+	routineRouter *router.RoutineRouter,
 	taskRouter *router.TaskRouter,
-	logRouter *router.LogRouter,
 	calenderRouter *router.CalenderRouter,
 	mockRouter *router.MockRouter,
 ) *ApiRouter {
 	router := gin.Default()
 	return &ApiRouter{
+		routineRouter:  routineRouter,
 		taskRouter:     taskRouter,
-		logRouter:      logRouter,
 		calenderRouter: calenderRouter,
 		mockRouter:     mockRouter,
 		router:         router,
@@ -43,8 +43,8 @@ func (r *ApiRouter) InitRouter() {
 		})
 	})
 
+	r.routineRouter.InitRoutineEndpoint(api)
 	r.taskRouter.InitTaskEndpoint(api)
-	r.logRouter.InitLogEndpoint(api)
 	r.calenderRouter.InitCalenderEndpoint(api)
 	r.mockRouter.InitMockEndpoint(mock)
 }

@@ -1,20 +1,19 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:routiner/src/model/block.dart';
+import 'package:routiner/src/model/routine.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-class BlockProvider extends ChangeNotifier {
+class RoutineProvider extends ChangeNotifier {
 
-  static final url = 'http://localhost:8080/api/block';
+  static final url = 'http://localhost:8080/api/routine';
 
   // final queryParam = {"test" : "123"};
   // static final baseUrl = Uri.http(host, path, queryParam);
 
-  List<Block> _data = [];
-
-  List<Block> get data => _data;
+  List<Routine> _data = [];
+  List<Routine> get data => _data;
 
   Future<void> fetchData() async {
     // Fetch data from your local server
@@ -24,15 +23,10 @@ class BlockProvider extends ChangeNotifier {
       final List<dynamic> data = jsonDecode(response.body);
       _data = data.map((result) {
         try {
-          return Block(
-            id: result['id'],
-            title: result['title'],
-            explain: result['explain'],
-            icon: result['icon_code_point'],
-          );
+          return Routine.fromJson(result);
         } catch (e) {
-          print('Error parsing item: $e');
-          return Block(title: 'Error', explain: 'Error parsing data', icon: Icons.error.codePoint);
+          print('Error parsing routine: $e');
+          return Routine.empty();
         }
         }).toList();
         notifyListeners();
@@ -48,9 +42,9 @@ class BlockProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> createBlock(Block block) async {
+  Future<void> createRoutine(Routine routine) async {
     try {
-      final body = jsonEncode(block.toJson());
+      final body = jsonEncode(routine.toJson());
 
       final response = await http.post(
         Uri.parse(url),
@@ -60,52 +54,72 @@ class BlockProvider extends ChangeNotifier {
 
       if (response.statusCode == 201)  {
         // Successful creation
-        print('Block created successfully');
+        print('Routine created successfully');
       } else {
         // Handle error
-        print('Error creating block: ${response.statusCode}');
+        print('Error creating routine: ${response.statusCode}');
+        print('Return:  ${response.body}');
       }
     } catch (e) {
       print("Error: Unexpected error: $e");
     }
   }
 
-  Future<void> deleteBlock(int block_id) async {
+  Future<void> deleteRoutine(int routine_id) async {
 
     try {
       final response = await http.delete(
-        Uri.parse("$url/$block_id"),
+        Uri.parse("$url/$routine_id"),
         headers: {'Content-Type': 'application/json'},
       );
       
       if (response.statusCode == 200)  
         {
         // Successful creation
-        print('Block deleted successfully');
+        print('Routine deleted successfully');
       } else {
         // Handle error
-        print('Error deleting block: ${response.statusCode}');
+        print('Error deleting routine: ${response.statusCode}');
       }
     } catch (e) {
       print("Error: Unexpected error: $e");
     }
   }
 
-  Future<void> revertBlock(int block_id) async {
+  Future<void> revertRoutine(int routine_id) async {
 
     try {
       final response = await http.post(
-        Uri.parse("$url/revert/$block_id"),
+        Uri.parse("$url/revert/$routine_id"),
         headers: {'Content-Type': 'application/json'},
       );
       
-      if (response.statusCode == 200)  
-        {
+      if (response.statusCode == 200) {
         // Successful creation
-        print('Block reverted successfully');
+        print('Routine reverted successfully');
       } else {
         // Handle error
-        print('Error reverted block: ${response.statusCode}');
+        print('Error reverted routine: ${response.statusCode}');
+      }
+    } catch (e) {
+      print("Error: Unexpected error: $e");
+    }
+  }
+
+  Future<void> checkTask(int routine_id) async {
+
+    try {
+      final response = await http.post(
+        Uri.parse("$url/revert/$routine_id"),
+        headers: {'Content-Type': 'application/json'},
+      );
+      
+      if (response.statusCode == 200) {
+        // Successful creation
+        print('Routine reverted successfully');
+      } else {
+        // Handle error
+        print('Error reverted routine: ${response.statusCode}');
       }
     } catch (e) {
       print("Error: Unexpected error: $e");

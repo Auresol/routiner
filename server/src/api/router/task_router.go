@@ -3,12 +3,14 @@ package router
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
 	"routiner/server/src/model"
 	"routiner/server/src/repo"
+	"routiner/server/src/util"
 )
 
 type TaskRouter struct {
@@ -27,50 +29,45 @@ func NewTaskRouter(
 
 func (r *TaskRouter) InitTaskEndpoint(apiRouter *gin.RouterGroup) {
 
-	apiRouter.GET("/tasks", r.GetTasks)
-	apiRouter.GET("/tasks/all", r.GetAllTasks)
-	apiRouter.POST("/task", r.CreateTask)
-	apiRouter.PUT("/task/:id", r.UpdateTask)
-	apiRouter.DELETE("/task/:id", r.DeleteTask)
-	apiRouter.POST("/task/revert/:id", r.RevertDeleteTask)
+	apiRouter.GET("/task/date", r.GetTasksInDate)
+	apiRouter.GET("/task/:id", r.GetTaskByID)
+	apiRouter.PUT("/task/:id", r.UpdateTaskByID)
+	apiRouter.DELETE("/task/:id", r.DeleteTaskByID)
 }
 
-func (r *TaskRouter) CreateTask(c *gin.Context) {
+func (r *TaskRouter) GetTaskByID(c *gin.Context) {
 	var task model.Task
-	if err := c.BindJSON(&task); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, err)
 		return
 	}
 
-	/* frequency must be at least everyday (1) */
-	if task.Frequency < 1 {
-		task.Frequency = 1
-	}
+	r.taskRepository.GetTaskByID(&task, &id)
 
-	result := r.db.Create(&task)
-	if result.Error != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
-		return
-	}
-
-	c.JSON(http.StatusCreated, task)
+	c.JSON(http.StatusOK, task)
 }
 
-func (r *TaskRouter) GetTasks(c *gin.Context) {
+func (r *TaskRouter) GetTasksInDate(c *gin.Context) {
 	var tasks []model.Task
-	r.taskRepository.GetTasks(&tasks)
+
+	day, dErr := strconv.Atoi(c.Query("d"))
+	month, mErr := strconv.Atoi(c.Query("m"))
+	year, yErr := strconv.Atoi(c.Query("y"))
+
+	date := util.GetTodayBegin()
+
+	/* if given all 3 parameters, set the date to the given one */
+	if dErr == nil && mErr == nil && yErr == nil {
+		date = time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.Local)
+	}
+
+	r.taskRepository.GetTasksInDate(&tasks, &date, false)
 
 	c.JSON(http.StatusOK, tasks)
 }
 
-func (r *TaskRouter) GetAllTasks(c *gin.Context) {
-	var tasks []model.Task
-	r.taskRepository.GetAllTasks(&tasks)
-
-	c.JSON(http.StatusOK, tasks)
-}
-
-func (r *TaskRouter) UpdateTask(c *gin.Context) {
+func (r *TaskRouter) UpdateTaskByID(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, err)
@@ -83,7 +80,7 @@ func (r *TaskRouter) UpdateTask(c *gin.Context) {
 		return
 	}
 
-	err = r.taskRepository.UpdateTask(&task, &id)
+	err = r.taskRepository.UpdateTaskByID(&id, &task)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, err)
 		return
@@ -92,29 +89,15 @@ func (r *TaskRouter) UpdateTask(c *gin.Context) {
 	c.JSON(http.StatusOK, task)
 }
 
-func (r *TaskRouter) DeleteTask(c *gin.Context) {
+func (r *TaskRouter) DeleteTaskByID(c *gin.Context) {
+
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, err)
 		return
 	}
 
-	r.taskRepository.DeleteTask(&id)
+	r.taskRepository.DeleteTaskByID(&id)
 
-	c.JSON(http.StatusOK, "Deleted successfully")
-}
-
-func (r *TaskRouter) RevertDeleteTask(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, err)
-	}
-
-	err = r.taskRepository.RevertDeleteTask(&id)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, err)
-		return
-	}
-
-	c.JSON(http.StatusOK, "Reverted successfully")
+	c.JSON(http.StatusOK, "Delete successfully")
 }

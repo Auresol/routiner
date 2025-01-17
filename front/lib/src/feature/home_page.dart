@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:routiner/src/feature/routine_card.dart';
+import 'package:routiner/src/component/routine_card.dart';
 import 'package:table_calendar/table_calendar.dart';
-import 'package:routiner/src/repo/block_repo.dart';
+import 'package:routiner/src/repo/task_repo.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 
 class HomePage extends StatefulWidget {
   @override
@@ -13,11 +14,21 @@ class HomePage extends StatefulWidget {
 class _HomePage extends State<HomePage> {
   //static const routeName = '/home';
 
+  DateTime _selectedDay = DateTime.now();
+  DateTime _focusedDay = DateTime.now();
+  var routineCards;
+
   @override
   void initState() {
     super.initState();  
+    final now = DateTime.now();
+    Provider.of<TaskProvider>(context, listen: false).fetchData(now.day, now.month, now.year);
+  }
 
-    Provider.of<BlockProvider>(context, listen: false).fetchData();
+  @override
+  void dispose() {
+    
+    super.dispose();
   }
 
   @override
@@ -41,9 +52,32 @@ class _HomePage extends State<HomePage> {
       ),
 
       TableCalendar(
-        firstDay: DateTime.utc(2010, 10, 16),
-        lastDay: DateTime.utc(2030, 3, 14),
-        focusedDay: DateTime.now(),
+        firstDay: DateTime.utc(2025, 1, 1),
+        lastDay: DateTime.utc(2030, 12, 31),
+        focusedDay: _focusedDay,
+
+        selectedDayPredicate: (day) {
+          return isSameDay(_selectedDay, day);
+        },
+
+        onDaySelected: (selectedDay, focusedDay) {
+          //if(selectedDay == focusedDay) return;
+          setState(() {
+            _selectedDay = selectedDay;
+            _focusedDay = focusedDay; // update `_focusedDay` here as well
+            Provider.of<TaskProvider>(context, listen: false).fetchData(_focusedDay.day, _focusedDay.month, _focusedDay.year);
+          });
+        },
+
+        /*
+        calendarBuilders: CalendarBuilders(
+          defaultBuilder: (context, day, focusedDay) {
+            return Center(
+              child: ColoredBox(color: Colors.black),
+            );
+          },
+        ),
+        */
       ),
 
       Padding(
@@ -58,17 +92,15 @@ class _HomePage extends State<HomePage> {
 
     return Padding(
       padding: const EdgeInsets.all(8.0),
-      child: Consumer<BlockProvider>(
+      child: Consumer<TaskProvider>(
         builder: (context, provider, child) {
-          final dynamicItems = provider.data.map((block) => RoutineSmallCard(
-            title: block.title,
-            icon: IconData(block.icon, fontFamily: 'MaterialIcons'), // Assuming your Block model has an icon property
+          routineCards = provider.data.map((task) => TaskSmallCard(
+            task: task,
             iconSize: 100,
-            explain: block.explain,
           )).toList();
 
           // Concatenate static and dynamic items
-          final allItems = [...staticItems, ...dynamicItems];
+          final allItems = [...staticItems, ...routineCards];
 
           return ListView.builder(
             itemCount: allItems.length,

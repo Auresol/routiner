@@ -14,75 +14,80 @@ import (
 
 type MockRouter struct {
 	db                 *gorm.DB
+	routineRepository  *repo.RoutineRepository
 	taskRepository     *repo.TaskRepository
-	logRepository      *repo.LogRepository
 	calenderRepository *repo.CalenderRepository
 }
 
 func NewMockRouter(
 	db *gorm.DB,
 ) *MockRouter {
+	var calenderRepository = repo.NewCalenderRepository(db)
 	return &MockRouter{
 		db:                 db,
+		routineRepository:  repo.NewRoutineRepository(db),
 		taskRepository:     repo.NewTaskRepository(db),
-		logRepository:      repo.NewLogRepository(db),
-		calenderRepository: repo.NewCalenderRepository(db),
+		calenderRepository: calenderRepository,
 	}
 }
 
 func (r *MockRouter) InitMockEndpoint(mockRouter *gin.RouterGroup) {
 
-	mockRouter.POST("/task", r.MockTask)
+	mockRouter.POST("/routine", r.MockRoutine)
 	mockRouter.POST("/month", r.MockMonth)
 	mockRouter.POST("/clear", r.MockClear)
 }
 
-type mockTaskBody struct {
+type mockRoutineBody struct {
 	RoutineOneAmount int `json:"routine_one_amuont"`
 	RoutineTwoAmount int `json:"routine_two_amuont"`
 }
 
-func (r *MockRouter) MockTask(c *gin.Context) {
-	var mockTaskBody mockTaskBody
-	if err := c.BindJSON(&mockTaskBody); err != nil {
+func (r *MockRouter) MockRoutine(c *gin.Context) {
+	var mockRoutineBody mockRoutineBody
+	if err := c.BindJSON(&mockRoutineBody); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	for range mockTaskBody.RoutineOneAmount {
-		var task model.Task
-		task.Title = gofakeit.Noun()
-		task.Explain = gofakeit.SentenceSimple()
-		task.IconCodePoint = 57583
-		task.RoutineMode = 1
-		task.DayInWeekly = int8(gofakeit.Number(1, 63))
+	for range mockRoutineBody.RoutineOneAmount {
+		var routine model.Routine
+		routine.Title = gofakeit.Noun()
+		routine.Explain = gofakeit.SentenceSimple()
+		routine.IconCodePoint = 57583
 
-		task.Frequency = 1
+		routine.RoutineMode = model.WEEKLY
+		routine.DayInWeekly = int8(gofakeit.Number(1, 63))
+		routine.ForceReset = true
+		routine.ActiveDate = time.Now().AddDate(-1, 0, 0)
+		routine.DueIn = gofakeit.Number(1, 50)
 
-		task.CreatedAt = time.Now().AddDate(-2, 0, 0)
-
-		r.taskRepository.CreateTask(&task)
+		routine.Frequency = 1
+		r.routineRepository.CreateRoutine(&routine)
 
 	}
 
-	for range mockTaskBody.RoutineTwoAmount {
-		var task model.Task
-		task.Title = gofakeit.Noun()
-		task.Explain = gofakeit.SentenceSimple()
-		task.IconCodePoint = 57583
-		task.RoutineMode = 2
-		task.Frequency = gofakeit.Number(1, 31)
-		task.ResetOnMonth = gofakeit.Bool()
+	for range mockRoutineBody.RoutineTwoAmount {
+		var routine model.Routine
+		routine.Title = gofakeit.Noun()
+		routine.Explain = gofakeit.SentenceSimple()
+		routine.IconCodePoint = 57583
 
-		task.CreatedAt = time.Now().AddDate(-1, 0, 0)
+		routine.RoutineMode = model.PERIOD
+		routine.Frequency = gofakeit.Number(1, 50)
+		routine.ResetOnMonth = gofakeit.Bool()
+		routine.ForceReset = true
 
-		r.taskRepository.CreateTask(&task)
+		routine.ActiveDate = time.Now().AddDate(-1, 0, 0)
+		routine.DueIn = gofakeit.Number(1, 50)
+
+		r.routineRepository.CreateRoutine(&routine)
 	}
 
-	var tasks []model.Task
-	r.taskRepository.GetTasks(&tasks)
+	var routines []model.Routine
+	r.routineRepository.GetRoutines(&routines)
 
-	c.JSON(http.StatusOK, tasks)
+	c.JSON(http.StatusOK, routines)
 }
 
 type mockMonthBody struct {
@@ -92,7 +97,7 @@ type mockMonthBody struct {
 }
 
 func (r *MockRouter) MockMonth(c *gin.Context) {
-	//var tasks []model.Task
+	//var routines []model.Routine
 
 	var mockMonthBody mockMonthBody
 	if err := c.BindJSON(&mockMonthBody); err != nil {
@@ -107,35 +112,23 @@ func (r *MockRouter) MockMonth(c *gin.Context) {
 	startDate := time.Date(mockMonthBody.StartYear, time.Month(mockMonthBody.StartMonth), 1, 0, 0, 0, 0, time.Local)
 	endDate := startDate.AddDate(0, mockMonthBody.Amount, 0)
 
-	var calender model.Calender
-	var log model.Log
 	finish := 0
 
 	for startDate != endDate {
 		var tasks []model.Task
-		r.calenderRepository.GetTasksInDate(&tasks, &startDate)
+		r.taskRepository.GetTasksInDate(&tasks, &startDate, false)
 
-		calender.Date = startDate
 		finish = 0
 
 		for _, task := range tasks {
 
-			if gofakeit.Number(1, 10) > 3 {
+			if gofakeit.Number(1, 10) > 3 && !task.Status {
 				finish++
-				log.Date = startDate
-				log.TaskID = task.ID
-				log.Detail = gofakeit.SentenceSimple()
-				result := r.db.Create(&log)
-				if result.Error != nil {
-					task.Log = append(task.Log, log)
-				}
-
+				task.Status = true
 				r.db.Save(&task)
+				r.taskRepository.SingleTaskUpdate(&task)
 			}
 		}
-
-		model.CalenderStatusUpdate(&calender, finish, len(tasks))
-		r.db.Create(&calender)
 
 		startDate = startDate.AddDate(0, 0, 1)
 	}
@@ -145,8 +138,8 @@ func (r *MockRouter) MockMonth(c *gin.Context) {
 
 func (r *MockRouter) MockClear(c *gin.Context) {
 
+	r.db.Exec("DELETE FROM routines;")
 	r.db.Exec("DELETE FROM tasks;")
-	r.db.Exec("DELETE FROM logs;")
 	r.db.Exec("DELETE FROM calenders;")
 
 	c.JSON(http.StatusOK, "Mock cleared")
